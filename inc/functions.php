@@ -2,10 +2,10 @@
 <?php
 
 // NAVBAR GENERATOR
-$navbar = ['Log In'=>'login',
-			 'Home'=>'home',
+$navbar = [	 'Home'=>'home',
 			 'Flight Details'=>'details',
-			 'Order Flight' =>'order'];
+			 'Order Flight' =>'order',
+             'Log In'=>'login'];
 
 function renderNav($navArray) {
 	foreach ($navArray as $name=>$link):?> 
@@ -56,7 +56,7 @@ if (isset ($_POST['send']) || isset($_POST['feedback'])) {
     }
 }
 
-// MYSQL DATABASE CONNECTION AND MANIPULATION
+// MYSQL DATABASE CONNECTION AND MANIPULATION ***********************
 
 try {
     $conn = new PDO($dsn, $username, $password);
@@ -120,3 +120,233 @@ function generateFlightInfo($connection) {
         <?php 
     }
 }
+
+function displayFlights($connection) {
+    $flights = $connection->query("SELECT * FROM flight");
+    $flightArray = $flights->fetchAll(PDO::FETCH_ASSOC);
+    foreach($flightArray as $flight) :?>
+    <tr>
+        <th scope='row'><?=$flight['id']?></th>
+        <td><?=$flight['name']?></td>
+        <td><?=$flight['description']?></td>
+        <td><?=$flight['flight_from']?></td>
+        <td><?=$flight['flight_to']?></td>
+        <td><?=$flight['price']?></td>
+        <td><?=$flight['flight_category']?></td>
+        <td><a class='btn' name='delete' type="submit" href=?page=login&delete&id=<?=$flight['id']?>>
+            <i class="fas fa-trash"></i></i></a></td>
+        <td><a class='btn' name='edit' type="submit" href=?page=login&edit&id=<?=$flight['id']?>>
+            <i class="fas fa-edit"></i></a></td>
+    </tr>
+
+    <?php endforeach;
+}
+
+function displayCategories($connection) {
+    $cat = $connection->query("SELECT * FROM category");
+    $catArray = $cat->fetchAll(PDO::FETCH_ASSOC);
+    foreach($catArray as $cat) :?>
+    <tr>
+        <th scope='row'><?=$cat['id']?></th>
+        <td><?=$cat['name']?></td>
+    </tr>
+    <?php endforeach;
+}
+
+if (isset($_POST['update'])) {
+    updateFlightTable($conn, 'update');
+} else if (isset($_POST['create'])) {
+    updateFlightTable($conn, 'create');
+} else if (isset($_GET['id']) && isset($_GET['delete'])) {
+    deleteFromTable($conn);
+}
+
+
+// A D M I N     P A N E L    T A B L E S *****************************************
+
+function updateFlightTable($connection, $changeType) {
+    $flightId = $_GET['id'];
+    $flightName = $_POST['name'];
+    $flightDesc = $_POST['description'];
+    $flightFrom = $_POST['from'];
+    $flightTo = $_POST['to'];
+    $flightPrice = $_POST['price'];
+    $flightCategory = $_POST['category'];
+    $regexNumber = '/[0-9.]{1,8}/';
+    $regexText = '/[a-zA-Z.,?!]{1,140}/';
+    if ($changeType == 'update' && preg_match($regexNumber, $flightId) && preg_match($regexText, $flightName)
+        && preg_match($regexText, $flightDesc) && preg_match($regexText, $flightFrom)
+        && preg_match($regexText, $flightTo) && preg_match($regexNumber, $flightPrice)
+        && preg_match($regexNumber, $flightCategory)) {
+        $IdExistCheck = "SELECT * FROM flight WHERE id = :id";
+        $IdExistCheckPrepare = $connection->prepare($IdExistCheck);
+        $IdExistCheckPrepare->bindParam(':id', $flightId, PDO::PARAM_STR);
+        $IdExistCheckPrepare->execute();
+        if ($IdExistCheckPrepare->rowCount() > 0) {
+            $flightDetails = "UPDATE flight SET name = :name, description = :description,
+            flight_from = :flight_from, flight_to = :flight_to, price = :price,
+            flight_category = :flight_category WHERE id = :id";
+            $flightDetailsPrepare = $connection->prepare($flightDetails);
+            $flightDetailsPrepare->bindParam(':id', $flightId, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':name', $flightName, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':description', $flightDesc, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':flight_from', $flightFrom, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':flight_to', $flightTo, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':price', $flightPrice, PDO::PARAM_STR);
+            $flightDetailsPrepare->bindParam(':flight_category', $flightCategory, PDO::PARAM_STR);
+            $flightDetailsPrepare->execute();
+        } else {
+            $message = "ID does not exist in database. Nothing to update.";
+            echo "<script type='text/javascript'>alert('$message');</script>";
+        }
+    } else if ($changeType == 'create' && preg_match($regexText, $flightName)
+        && preg_match($regexText, $flightDesc) && preg_match($regexText, $flightFrom)
+        && preg_match($regexText, $flightTo) && preg_match($regexNumber, $flightPrice)
+        && preg_match($regexNumber, $flightCategory)) {
+        $flightDetails = "INSERT INTO flight (name, description, flight_from, 
+            flight_to, price, flight_category) VALUES (:name, :description, :flight_from,
+            :flight_to, :price, :flight_category)";
+        $flightDetailsPrepare = $connection->prepare($flightDetails);
+        $flightDetailsPrepare->bindParam(':name', $flightName, PDO::PARAM_STR);
+        $flightDetailsPrepare->bindParam(':description', $flightDesc, PDO::PARAM_STR);
+        $flightDetailsPrepare->bindParam(':flight_from', $flightFrom, PDO::PARAM_STR);
+        $flightDetailsPrepare->bindParam(':flight_to', $flightTo, PDO::PARAM_STR);
+        $flightDetailsPrepare->bindParam(':price', $flightPrice, PDO::PARAM_STR);
+        $flightDetailsPrepare->bindParam(':flight_category', $flightCategory, PDO::PARAM_STR);
+        $flightDetailsPrepare->execute();
+    } else {
+        $message = "Form filled incorrectly. Please try again.";
+            echo "<script type='text/javascript'>alert('$message');</script>";
+    }
+}
+
+function deleteFromTable($connection) {
+    $flightId = $_GET['id'];
+    $IdExistCheck = "SELECT * FROM flight WHERE id = :id";
+    $IdExistCheckPrepare = $connection->prepare($IdExistCheck);
+    $IdExistCheckPrepare->bindParam(':id', $flightId, PDO::PARAM_STR);
+    $IdExistCheckPrepare->execute();
+    if ($IdExistCheckPrepare->rowCount() > 0) {
+        $flightDetails = "DELETE FROM flight WHERE id = :id";
+        $flightDetailsPrepare = $connection->prepare($flightDetails);
+        $flightDetailsPrepare->bindParam(':id', $flightId, PDO::PARAM_STR);
+        $flightDetailsPrepare->execute();
+    } 
+}
+
+function updateForm($connection) {
+    $flightId = $_GET['id'];
+    $flightDetails = "SELECT * FROM flight WHERE id = :id";
+    $flightDetailsPrepare = $connection->prepare($flightDetails);
+    $flightDetailsPrepare->bindParam(':id', $flightId, PDO::PARAM_STR);
+    $flightDetailsPrepare->execute();
+    $fullFlightDetails = $flightDetailsPrepare->fetchAll(PDO::FETCH_ASSOC);?>
+    <form method='post' class="form-horizontal form-label-left" novalidate>
+      <span class="section">Editing Flight ID <?=$flightId;?></span>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["name"];?>' id="name" class="form-control col-md-7 col-xs-12" name="name" placeholder="Type in the name for the flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Description <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["description"];?>' id="description" class="form-control col-md-7 col-xs-12" name="description" placeholder="Type in the description for the flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Flight From <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["flight_from"];?>' id="from" class="form-control col-md-7 col-xs-12" name="from" placeholder="Flight departure location" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Flight To <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["flight_to"];?>' id="to" class="form-control col-md-7 col-xs-12" name="to" placeholder="Flight destination" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Price <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["price"];?>' id="price" class="form-control col-md-7 col-xs-12" name="price" placeholder="Price of flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Category <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input value='<?=$fullFlightDetails[0]["flight_category"];?>' id="category" class="form-control col-md-7 col-xs-12" name="category" placeholder="Flight category" required="required" type="text">
+        </div>
+      </div>
+      <div class="ln_solid"></div>
+      <div class="form-group">
+        <div class="col-md-6 col-md-offset-3">
+          <button name='update' type="submit" class="btn btn-success">Update</button>
+          <a style="color: #fff" class='btn btn-warning' href=?page=login>Cancel</a>
+        </div>
+      </div>
+    </form> <?php 
+}
+
+function createNewForm() {
+    ?>
+    <form method='post' class="form-horizontal form-label-left" novalidate>
+      <span class="section">Create New Flight</span>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="name" class="form-control col-md-7 col-xs-12" name="name" placeholder="Type in the name for the flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Description <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="description" class="form-control col-md-7 col-xs-12" name="description" placeholder="Type in the description for the flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Flight From <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="from" class="form-control col-md-7 col-xs-12" name="from" placeholder="Flight departure location" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Flight To <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="to" class="form-control col-md-7 col-xs-12" name="to" placeholder="Flight destination" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Price <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="price" class="form-control col-md-7 col-xs-12" name="price" placeholder="Price of flight" required="required" type="text">
+        </div>
+      </div>
+      <div class="item form-group">
+        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Category <span class="required">*</span>
+        </label>
+        <div class="col-md-6 col-sm-6 col-xs-12">
+          <input id="category" class="form-control col-md-7 col-xs-12" name="category" placeholder="Flight category" required="required" type="text">
+        </div>
+      </div>
+      <div class="ln_solid"></div>
+      <div class="form-group">
+        <div class="col-md-6 col-md-offset-3">
+          <button name='create' type="submit" class="btn btn-danger">Create</button>
+        </div>
+      </div>
+    </form> <?php 
+}
+

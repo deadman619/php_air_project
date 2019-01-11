@@ -1,4 +1,5 @@
-<?php require "config/config.php";
+<?php session_start();
+require "config/config.php";
 require 'inc/functions.php'; ?>
 <!DOCTYPE html>
 <html>
@@ -8,9 +9,7 @@ require 'inc/functions.php'; ?>
 	<body>
 
 		<?php require "themes/$theme/_partials/header.php";
-		require 'config/router.php';
-		require "themes/$theme/pages/add_testimonial.php";
-        require "themes/$theme/_partials/footer.php"; ?>
+		require 'config/router.php'; ?>
 	</body>
 
 	<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
