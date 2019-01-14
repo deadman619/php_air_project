@@ -165,7 +165,9 @@ if (isset($_POST['update'])) {
 // A D M I N     P A N E L    T A B L E S *****************************************
 
 function updateFlightTable($connection, $changeType) {
-    $flightId = $_GET['id'];
+    if (isset($_GET['id'])) { 
+    	$flightId = $_GET['id'];
+    }
     $flightName = $_POST['name'];
     $flightDesc = $_POST['description'];
     $flightFrom = $_POST['from'];
